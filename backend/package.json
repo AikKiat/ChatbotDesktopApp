@@ -1,0 +1,36 @@
+{
+  "name": "chatbot-electron-app",
+  "version": "1.0.0",
+  "description": "A chatbot app using electron",
+  "keywords": [
+    "electron",
+    "typescript"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "chatbot-electron-app"
+  },
+  "license": "MIT",
+  "author": "millerman",
+  "type": "commonjs",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "npm run build && electron .",
+    "dev": "tsc --watch",
+    "test": "npm start"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.10",
+    "electron": "^40.0.0",
+    "prisma": "^6.19.2",
+    "typescript": "~5.9.3"
+  },
+  "dependencies": {
+    "@aws-sdk/client-bedrock": "^3.980.0",
+    "@aws-sdk/credential-provider-sso": "^3.972.3",
+    "@prisma/adapter-pg": "^7.3.0",
+    "@prisma/client": "^7.3.0",
+    "dotenv": "^17.2.3"
+  }
+}
