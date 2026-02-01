@@ -3,6 +3,7 @@ from langchain_openai import ChatOpenAI
 from langchain_aws import ChatBedrock
 from dotenv import load_dotenv
 import os
+import boto3
 
 # Load environment variables
 load_dotenv()
@@ -22,13 +23,19 @@ class Llm:
         return cls._instance
     
 
-    def build_llm(model_id,region, credentials):
+    def build_llm(self, model_id, region, credentials):
+        # Create a boto3 session with the credentials
+        session = boto3.Session(
+            aws_access_key_id=credentials["accessKeyId"],
+            aws_secret_access_key=credentials["secretAccessKey"],
+            aws_session_token=credentials["sessionToken"],
+            region_name=region
+        )
+        
+        # Create a bedrock-runtime client from the session
+        bedrock_client = session.client("bedrock-runtime")
+        
         return ChatBedrock(
             model_id=model_id,
-            region=region,
-            credentials={
-                "access_key":credentials["accessKeyId"],
-                "secret_key":credentials["secretAccessKey"],
-                "session_token":credentials["sessionToken"]
-            }
+            client=bedrock_client
         )

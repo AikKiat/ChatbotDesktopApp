@@ -1,7 +1,19 @@
 
 
 import { contextBridge, ipcRenderer } from "electron";
-import { IPC_CHANNELS } from "../ipc/channels";
+
+// Inline channel constants (can't import from separate file in preload)
+const IPC_CHANNELS = {
+  AI_PROMPT: "ai:prompt",
+  CHAT_LIST_TITLE: "chat:listTitles",
+  CHAT_UPDATE_TITLES: "chat:updateTitle",
+  MESSAGE_STORE: "message:store",
+  MESSAGE_GET_LATEST_N: "message:getLatest",
+  AWS_LOGIN: "aws:login",
+  AWS_LIST_MODELS: "aws:listModels",
+  AWS_CONFIGURE_SESSION: "aws:configSession",
+  AWS_SEND_MODEL_DETAILS : "aws:modelDetails"
+} as const;
 
 contextBridge.exposeInMainWorld("electronAPI", {
   
@@ -26,6 +38,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   awsLogin : () => ipcRenderer.invoke(IPC_CHANNELS.AWS_LOGIN),
   listModels : () => ipcRenderer.invoke(IPC_CHANNELS.AWS_LIST_MODELS) ,
-  awsConfigureSession : () => ipcRenderer.invoke(IPC_CHANNELS.AWS_CONFIGURE_SESSION)
-
+  awsConfigureSession : () => ipcRenderer.invoke(IPC_CHANNELS.AWS_CONFIGURE_SESSION),
+  sendModelDetails : (modelId : string) => ipcRenderer.invoke(IPC_CHANNELS.AWS_SEND_MODEL_DETAILS, modelId)
 });

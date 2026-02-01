@@ -1,34 +1,19 @@
 
 
-import {prisma} from "../db/prisma";
+import { Messages } from "../persistence/messages";
 
-export async function storeMessage(chatId : number, messages : string[]){
-    if (messages.length === 0) return;
+export async function storeToDb(){
 
-    await prisma.message.createMany({
-        data : messages.map(content => ({
-            chatId,
-            content
-        })),
-        skipDuplicates : true
-    });
+    let result : Boolean = await Messages.getInstance().saveToDb();
+    if(result){
+        return true;
+    }``
+    return false;
 }
 
 export async function getPaginated(chatId : number, offset : number, limit : number){
-    const messages : {content : string;}[] = await prisma.message.findMany({
-        where : {chatId},
-        orderBy : {id : 'desc'},
-        skip : offset,
-        take : limit,
-        select : {content : true}
-    });
+    let messages : Messages = Messages.getInstance();
+    let result : string[] = await messages.getLatestMessages(chatId, offset, limit);
 
-
-    let messageStringList : string[] = [];
-    
-    messages.map((message : {content : string}) =>{
-        messageStringList.push(message.content);
-    })
-
-    return messageStringList
+    return result;
 }

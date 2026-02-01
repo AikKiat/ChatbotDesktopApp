@@ -3,8 +3,9 @@
  * Spawns Python server, handles lifecycle, and streams AI responses
  */
 
-import { spawn, ChildProcess } from 'child_process';
+import { spawn, ChildProcess, exec, execSync } from 'child_process';
 import * as path from 'path';
+import fs from "fs";
 
 export interface AIStreamChunk {
     type: 'thought' | 'token' | 'title' | 'done' | 'error';
@@ -43,29 +44,40 @@ export class AISidecarService {
         }
 
         this.startupPromise = new Promise((resolve, reject) => {
-            const aiModulePath = path.join(__dirname, '../../ai_module');
+            const aiModulePath = path.join(__dirname, '../../../ai_module');
             
             console.log('[AI Sidecar] Starting Python server...');
             console.log('[AI Sidecar] Module path:', aiModulePath);
 
-            // Spawn Python process
+            // 2. DEBUG: Check if the folder actually exists
+            if (!fs.existsSync(aiModulePath)) {
+                console.error(`[Main] ERROR: Folder not found at ${aiModulePath}`);
+            } else {
+                console.log(`[Main] Found ai_module at: ${aiModulePath}`);
+            }
+
+            // 3. Spawn with the correct directory
             this.pythonProcess = spawn('python', [
-                '-m', 'uvicorn',
-                'main:app',
-                '--host', this.pythonHost,
-                '--port', this.pythonPort.toString(),
-                '--log-level', 'info'
+                '-m', 
+                'uvicorn', 
+                'main:app', 
+                '--host', '127.0.0.1', 
+                '--port', '8000'
             ], {
                 cwd: aiModulePath,
-                stdio: ['ignore', 'pipe', 'pipe']
+                shell: false,
+                env: process.env
             });
 
-            // Handle stdout
+            this.pythonProcess.on('error', (err) => {
+                console.error('Failed to start subprocess.', err);
+            });
+
+
             this.pythonProcess.stdout?.on('data', (data) => {
                 const output = data.toString();
                 console.log('[AI Sidecar]', output);
 
-                // Check if server is ready
                 if (output.includes('Uvicorn running') || output.includes('Application startup complete')) {
                     this.isReady = true;
                     console.log('[AI Sidecar] ✓ Server ready');
@@ -99,12 +111,12 @@ export class AISidecarService {
                 reject(err);
             });
 
-            // Timeout if server doesn't start in 10 seconds
-            setTimeout(() => {
-                if (!this.isReady) {
-                    reject(new Error('Python server startup timeout'));
-                }
-            }, 10000);
+            // // Timeout if server doesn't start in 10 seconds
+            // setTimeout(() => {
+            //     if (!this.isReady) {
+            //         reject(new Error('Python server startup timeout'));
+            //     }
+            // }, 10000);
         });
 
         return this.startupPromise;
@@ -113,10 +125,24 @@ export class AISidecarService {
     /**
      * Stop the Python server
      */
+
     stop(): void {
-        if (this.pythonProcess) {
-            console.log('[AI Sidecar] Stopping Python server...');
-            this.pythonProcess.kill();
+        if (this.pythonProcess && this.pythonProcess.pid) {
+            const pid = this.pythonProcess.pid;
+            console.log(`[AI Sidecar] Attempting to kill process tree for PID: ${pid}`);
+
+            if (process.platform === 'win32') {
+                // Use exec to run the command exactly as you would in CMD
+                try{
+                    execSync(`taskkill /F /T /PID ${pid}`);
+                    console.log('[AI Sidecar] Process tree terminated successfully');
+                } catch(error){
+                    console.error('[AI Sidecar] Kill failed (process might already be dead)');
+                }
+            } else {
+                this.pythonProcess.kill('SIGTERM');
+            }
+
             this.pythonProcess = null;
             this.isReady = false;
             this.startupPromise = null;
@@ -126,12 +152,24 @@ export class AISidecarService {
     /**
      * Stream AI response from Python via SSE
      */
-    async* streamPrompt(prompt: string, chatId: number, recentMessages : string[], currentTitle : string, sessionId : string): AsyncGenerator<AIStreamChunk> {
+    async* streamPrompt(prompt: string, chatId: number, recentMessages : string[], currentTitle : string): AsyncGenerator<AIStreamChunk> {
         if (!this.isReady) {
             await this.start();
         }
 
+        console.log("PROMPT", prompt);
+
         const url = `http://${this.pythonHost}:${this.pythonPort}/chat/stream`;
+
+
+
+    //     class ChatRequest(BaseModel):
+    // prompt: str
+    // chat_id: int = 0
+    
+    // #These other key details as well!!!
+    // recent_messages: List[str]  
+    // current_title: str
         
         try {
             const response = await fetch(url, {
@@ -139,7 +177,7 @@ export class AISidecarService {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ prompt, chat_id: chatId, recentMessages, currentTitle, sessionId })
+                body: JSON.stringify({ "prompt" : prompt, "chat_id": chatId, "recent_messages" : recentMessages, "current_title" : currentTitle})
             });
 
             if (!response.ok) {
@@ -192,16 +230,12 @@ export class AISidecarService {
         }
     }
 
-    /**
-     * Check if server is ready
-     */
+
     getIsReady(): boolean {
         return this.isReady;
     }
 
-    /**
-     * Get server URL
-     */
+
     getServerUrl(): string {
         return `http://${this.pythonHost}:${this.pythonPort}`;
     }

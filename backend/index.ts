@@ -5,6 +5,7 @@ import * as path from 'path';
 import './ipc/ai';
 import './ipc/chat_titles';
 import './ipc/chat_messages';
+import './ipc/aws_login';
 
 // Import AI sidecar service
 import { AISidecarService } from './services/ai_sidecar_service';
@@ -24,30 +25,25 @@ function createMainWindow(){
         }
     });
 
-    // const startUrl = url.format({
-    //     pathname : path.join(__dirname, 'index.html'),
-    //     protocol : 'file'
-    // })
-
-    // mainWindow.loadURL(startUrl);
     mainWindow.loadURL("http://localhost:5173");
 }
 
 // App lifecycle
 app.whenReady().then(async () => {
+
+    createMainWindow();
     // Start Python AI sidecar
     try {
         await aiSidecar.start();
-        console.log('[Main] ✓ AI Sidecar started');
+        console.log('[Main] AI Sidecar started');
     } catch (error) {
         console.error('[Main] Failed to start AI Sidecar:', error);
     }
-    
-    createMainWindow();
 });
 
-// Cleanup on quit
-app.on('before-quit', () => {
+
+app.on('before-quit', (event) => {
     console.log('[Main] Shutting down AI Sidecar...');
-    aiSidecar.stop();
+    aiSidecar.stop(); //Synchronous call, will block until done here. We want to do this because the system can exit before the child process of the python sidecar is even killed.
+    console.log('[Main] AI Sidecar shut down successfully');
 });

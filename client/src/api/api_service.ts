@@ -10,21 +10,28 @@ import type { AIStreamChunk } from "./api_dtos";
 
 
 let streamSubscribers: Array<(chunk: AIStreamChunk) => void> = [];
+let isListenerInitialized = false;
 
 
-//initialise the listener for ai stream events
 export function initializeAIStreamListener() {
+  // Only initialize once to prevent multiple IPC listeners
+  if (isListenerInitialized) {
+    return;
+  }
+  
   window.electronAPI.onStream((chunk) => {
     streamSubscribers.forEach((fn) => fn(chunk));
   });
+  
+  isListenerInitialized = true;
 }
 
-//subscribe to ai stream events
+
 export function subscribeToAIStream(callback: (chunk: AIStreamChunk) => void) {
   streamSubscribers.push(callback);
 }
 
-//unsubscribe from ai stream events
+
 export function unsubscribeFromAIStream(callback: (chunk: AIStreamChunk) => void) {
   streamSubscribers = streamSubscribers.filter((fn) => fn !== callback);
 }
@@ -60,7 +67,7 @@ export async function fetchAllChatTitles(): Promise<ChatData[]> {
 //fetch chat conversations for a message id
 export async function fetchChatConvoForGivenId(chatId: number): Promise<ChatConvo> {
   try {
-    const messages = await window.electronAPI.getLatestMessages(chatId, 0, 50);
+    const messages = await window.electronAPI.getLatestMessages(chatId, 0, 10);
     const titlesMap = await window.electronAPI.getChatTitles();
     
     return {
@@ -75,9 +82,9 @@ export async function fetchChatConvoForGivenId(chatId: number): Promise<ChatConv
 }
 
 //store chat messages
-export async function storeMessages(chatId: number, messages: string[]): Promise<void> {
+export async function storeMessages(): Promise<void> {
   try {
-    await window.electronAPI.storeMessages(chatId, messages);
+    await window.electronAPI.storeMessages();
   } catch (error) {
     console.error('Failed to store messages:', error);
     throw error;
@@ -121,7 +128,7 @@ export async function awsLogin(){
 
 export async function awsListBedrockModels(){
   try{
-    const result : any[] = await window.electronAPI.awsListModels();
+    const result : any[] = await window.electronAPI.listModels();
     return result;
   } catch(error){
     console.error("Failed to list models from aws bedrock");
@@ -134,5 +141,14 @@ export async function sendOverSessionConfigDetails(){
     return result;
   } catch(error){
     console.error("Failed to send over session config details");
+  }
+}
+
+export async function sendModelDetails(modelId : string){
+  try{
+    const result = await window.electronAPI.sendModelDetails(modelId);
+    return result;
+  } catch(error){
+    console.error("Failed to send over model details");
   }
 }

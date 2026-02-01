@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
-import "../styles/chatbot.css";
+import "../../styles/chatbot.css";
 
-import chatbotAssetIcon from "../assets/chatbot.png";
+import chatbotAssetIcon from "../../assets/chatbot.png";
+import { initializeAIStreamListener } from "../../api/api_service";
 
 import {
     sendPromptToAI,
@@ -39,8 +40,17 @@ export default function AIBotSection() {
     // AI streaming state
     const [currentAIResponse, setCurrentAIResponse] = useState<string>("");
 
+    
+
+    useEffect(() => {
+        initializeAIStreamListener();
+    }, []);
+
+
+
     // Subscribe to AI stream on mount
     useEffect(() => {
+        console.log(currentAIResponse);
         const handleStream = (chunk: AIStreamChunk) => {
             switch (chunk.type) {
                 case 'thought':
@@ -49,7 +59,8 @@ export default function AIBotSection() {
                     break;
 
                 case 'token':
-                    setCurrentAIResponse(chunk.content || "");
+                    // APPEND tokens, don't replace
+                    setCurrentAIResponse((prev) => prev + (chunk.content || ""));
                     setIsAiLoadingResponse(true);
                     break;
 
@@ -60,10 +71,14 @@ export default function AIBotSection() {
                     break;
 
                 case 'done':
-                    if (currentAIResponse) {
-                        setMessages((prev) => [...prev, "AI|" + currentAIResponse]);
-                        setCurrentAIResponse("");
-                    }
+                    // Use functional form to capture the current AI response
+                    setCurrentAIResponse((prevResponse) => {
+                        if (prevResponse) {
+                            setMessages((prev) => [...prev, "AI|" + prevResponse]);
+                        }
+                        return ""; // Clear after adding to messages
+                    });
+                    
                     if (chunk.chat_title) {
                         setCurrentTitle(chunk.chat_title);
                     }
@@ -101,12 +116,22 @@ export default function AIBotSection() {
 
     async function handleSubmit() {
         if (!inputValue) return;
-        setMessages([...messages, "HU|" + inputValue]);
-        setIsAiLoadingResponse(true);
+        
+        // Add any pending AI response to messages before submitting new user message
+        setMessages((prev) => {
+            const newMessages = [...prev, "HU|" + inputValue];
+            // If there's a current AI response that hasn't been added yet, add it first
+            if (currentAIResponse) {
+                return [...prev, "AI|" + currentAIResponse, "HU|" + inputValue];
+            }
+            return newMessages;
+        });
+        
         setCurrentAIResponse("");
+        setIsAiLoadingResponse(true);
         
         try {
-            await sendPromptToAI(inputValue, currentId, 0, 10); 
+            await sendPromptToAI("HU|"+inputValue, currentId, 0, 10); 
             
             //We put zero over here for the offset because these last 2 argument parameters 
             // will only be used for the first user's message to the ai upon switching to this chat. 
@@ -134,7 +159,6 @@ export default function AIBotSection() {
     }
 
     async function fetchChatConvo(chatId : number){
-
         let result : ChatConvo = await fetchChatConvoForGivenId(chatId);
         console.log("result", JSON.stringify(result));
         const chatTitle : string = result.chat_title;
@@ -211,7 +235,7 @@ export default function AIBotSection() {
     async function saveChat() {
         // Save messages to DB
         if (messages.length > 0 && currentId > 0) {
-            await storeMessages(currentId, messages);
+            await storeMessages();
             await updateChatTitle(currentId, currentTitle);
         }
     }
@@ -272,6 +296,7 @@ export default function AIBotSection() {
                 handleLoadMore={handleLoadMore}
                 isLoadingMore={isLoadingMore}
                 hasMoreMessages={hasMoreMessages}
+                currentAIResponse={currentAIResponse}
             />
         </div>
     );
@@ -299,6 +324,7 @@ interface chatBotProps {
     handleLoadMore: () => void;
     isLoadingMore: boolean;
     hasMoreMessages: Map<number, boolean>;
+    currentAIResponse: string;
 }
 
 export function ChatBot({
@@ -320,117 +346,100 @@ export function ChatBot({
     handleLoadMore,
     isLoadingMore,
     hasMoreMessages,
+    currentAIResponse,
 }: chatBotProps) {
     return (
         <>
-            <div className={`side_panel ${sideChatsPanelExpanded ? "expanded" : "hidden"}`}>
-                {chatDataMappings &&
-                    Object.entries(chatDataMappings).map(([, chatData]) => {
-                        let title: string = chatData.chat_title;
-                        let id: number = chatData.chat_id;
-                        return (
-                            <div
-                                id="chat"
-                                key={id}
-                                onClick={() => {
-                                    if (Number(id) === currentId) {
-                                        return;
-                                    }
-                                    saveChat();
-                                    fetchChatConvo(id);
-                                }}
-                            >
-                                {title}
-                            </div>
-                        );
-                    })}
-                <button
-                    onClick={() => {
-                        saveChat();
-                        createNewChat();
-                    }}
-                    id="add_new_chat_button"
-                >
-                    + New Chat
-                </button>
-            </div>
-
-
+        <div className={`side_panel ${sideChatsPanelExpanded ? "expanded" : "hidden"}`}>
+            {chatDataMappings &&
+                Object.entries(chatDataMappings).map(([, chatData]) => {
+                    let title: string = chatData.chat_title;
+                    let id: number = chatData.chat_id;
+                    return (
+                        <div
+                            id="chat"
+                            key={id}
+                            onClick={() => {
+                                if (Number(id) === currentId) {
+                                    return;
+                                }
+                                saveChat();
+                                fetchChatConvo(id);
+                            }}>{title}</div>
+                    );
+                })}
+            <button
+                onClick={() => {
+                    saveChat();
+                    createNewChat();
+                }}
+                id="add_new_chat_button">+ New Chat</button>
+        </div>
         <div className="chatbot_interface_holder">
-                <div className="chatbot_header">
-                    <div className={`side_panel_button ${sideChatsPanelExpanded? "shifted_left" : "normal"}`} onClick={handleExpandSidePanel}>
-                        <span id="bar"></span>
-                        <span id="bar"></span>
-                        <span id="bar"></span>
-                    </div>
-                    <h3>{currentTitle || "AI Assistant"}</h3>
+            <div className="chatbot_header">
+                <div className={`side_panel_button ${sideChatsPanelExpanded? "shifted_left" : "normal"}`} onClick={handleExpandSidePanel}>
+                    <span id="bar"></span>
+                    <span id="bar"></span>
+                    <span id="bar"></span>
                 </div>
-
-                <div className="chat_layout">
-                    { messages && messages.length > 0 ? (
-                        <div className="chatting_holder">
-                            <div className="chatting_scroll_view">
-                                {currentId >= 0 && hasMoreMessages.get(currentId) === true && (
-                                    <button 
-                                        className="load_more_button" 
-                                        onClick={handleLoadMore}
-                                        disabled={isLoadingMore}
-                                    >
-                                        {isLoadingMore ? "Loading..." : "Load More Messages"}
-                                    </button>
-                                )}
-
-                                {messages.map((message, index) => {
-                                    const isHuman = message.startsWith("HU|");
-                                    const content = message.substring(3); // Remove "HU|" or "AI|" prefix
-                                    
-                                    if (isHuman) {
-                                        return (
-                                            <div key={index} className="text_box_holder_human">
-                                                {content}
-                                            </div>
-                                        );
-                                    } else {
-                                        return (
-                                            <div key={index} className="text_box_holder_ai">
-                                                <FadeInText text={content} delay={20} />
-                                            </div>
-                                        );
-                                    }
-                                })}
-
-                                {/* {isAiLoadingResponse && currentAIResponse && (
-                                    <div className="text_box_holder_ai">
-                                        <FadeInText text={currentAIResponse} delay={20} />
-                                    </div>
-                                )}
-
-                                {isAiLoadingResponse && !currentAIResponse && (
-                                    <div className="text_box_holder_ai">
-                                        <div className="typing_indicator">
-                                            <span className="typing_dot"></span>
-                                            <span className="typing_dot"></span>
-                                            <span className="typing_dot"></span>
-                                        </div>
-                                    </div>
-                                )} */}
-                            </div>
-
-                            <div className={`internal_thoughts ${isAiLoadingResponse ? "visible" : "hidden"}`}>
-                                <span id="spinning_icon"></span>
-                                {internalThoughtsString}
-                            </div>
-                        </div>
-                    ) : (
-                        <img src={chatbotAssetIcon} id="chatbot_icon" />
-                    )}
-                </div>
-                <div className="user_input_area">
-                    <textarea className="textbox" value={inputValue} onChange={(e) => setInputValue(e.target.value)} placeholder="Type your message..." onKeyDown={handleKeyDown}/>
-                    <button id="submit_button" onClick={handleSubmit}>Send</button>
-                </div>
-                    
+                <h3>{currentTitle || "AI Assistant"}</h3>
             </div>
+
+            <div className="chat_layout">
+                { messages && messages.length > 0 ? (
+                    <div className="chatting_holder">
+                        <div className="chatting_scroll_view">
+                            {currentId >= 0 && hasMoreMessages.get(currentId) === true && (
+                                <button 
+                                    className="load_more_button" 
+                                    onClick={handleLoadMore}
+                                    disabled={isLoadingMore}>
+                                    {isLoadingMore ? "Loading..." : "Load More Messages"}
+                                </button>
+                            )}
+
+                            {messages.map((message, index) => {
+                                console.log(messages);
+                                const isHuman = message.startsWith("HU|");
+                                const content = message.substring(3); // Remove "HU|" or "AI|" prefix
+                                
+                                if (isHuman) {
+                                    return (
+                                        <div key={index} className="text_box_holder_human">
+                                            {content}
+                                        </div>
+                                    );
+                                } else {
+                                    return (
+                                        <div key={index} className="text_box_holder_ai">
+                                            <FadeInText text={content} delay={20} />
+                                        </div>
+                                    );
+                                }
+                            })}
+
+                            {/* Show currently streaming AI response */}
+                            {currentAIResponse && (
+                                <div className="text_box_holder_ai">
+                                    <FadeInText text={currentAIResponse} delay={20} />
+                                </div>
+                            )}
+                        </div>
+
+                        <div className={`internal_thoughts ${isAiLoadingResponse ? "visible" : "hidden"}`}>
+                            <span id="spinning_icon"></span>
+                            {internalThoughtsString}
+                        </div>
+                    </div>
+                ) : (
+                    <img src={chatbotAssetIcon} id="chatbot_icon" />
+                )}
+            </div>
+            <div className="user_input_area">
+                <textarea className="textbox" value={inputValue} onChange={(e) => setInputValue(e.target.value)} placeholder="Type your message..." onKeyDown={handleKeyDown}/>
+                <button id="submit_button" onClick={handleSubmit}>Send</button>
+            </div>       
+        </div>
         </>
     )
 }

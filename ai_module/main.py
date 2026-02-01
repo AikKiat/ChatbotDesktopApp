@@ -10,7 +10,7 @@ from fastapi.responses import StreamingResponse
 
 from utils.event_streaming import EventStreamer
 from utils.parse_input import process_user_input
-from utils.api_mappings import ChatRequest, SessionConfig
+from utils.api_mappings import ChatRequest, SessionConfig, ModelDetails
 from utils.session_store import SessionStore
 
 import asyncio
@@ -39,11 +39,15 @@ def configure_session(config : SessionConfig):
     SessionStore.get_instance().add_to_session_config(config=config)
     return {"status" : "ok"}
 
+@app.post("/session/model-details")
+def modelDetails(request : ModelDetails):
+    SessionStore.get_instance().add_model_details(request)
+
 
 @app.post("/chat/stream")
 async def chat_stream(request: ChatRequest):
 
-    asyncio.create_task(process_user_input(prompt=request.prompt, chat_id=request.chat_id, session_id=request.session_id))
+    asyncio.create_task(process_user_input(prompt=request.prompt, chat_id=request.chat_id, previous_messages=request.recent_messages, current_title=request.current_title))
 
     #Create the queue for streaming now
     EventStreamer.get_instance().create_streaming_queue(request=request)

@@ -13,7 +13,7 @@ export async function findTitles(){
     );
 }
 
-export async function getChatTitleForId(chatId : number){
+export async function getChatTitle(chatId : number){
     const chat = await prisma.chat.findFirst({
         select : {id : true, title : true},
         where : {id : chatId}

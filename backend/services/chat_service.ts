@@ -1,13 +1,13 @@
 
 
-import { findTitles, insertTitle } from "../repositories/chat_repo";
+import { findTitles, insertTitle, getChatTitle } from "../repositories/chat_repo";
 
 export async function getChatTitles(){
     return findTitles();
 }
 
 export async function getChatTitleForId(chatId : number){
-    return getChatTitleForId(chatId);
+    return getChatTitle(chatId);
 }
 
 

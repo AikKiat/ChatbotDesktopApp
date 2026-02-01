@@ -9,7 +9,8 @@ export const IPC_CHANNELS = {
     MESSAGE_STORE : "message:store",
     MESSAGE_GET_LATEST_N : "message:getLatest",
     AI_PROMPT : "ai:prompt",
-    AWS_CONFIGURE_SESSION : "aws:configSession"
+    AWS_CONFIGURE_SESSION : "aws:configSession",
+    AWS_SEND_MODEL_DETAILS : "aws:modelDetails"
 
 
 } as const

@@ -7,7 +7,6 @@ class ChatRequest(BaseModel):
     chat_id: int = 0
     
     #These other key details as well!!!
-    session_id: str 
     recent_messages: List[str]  
     current_title: str
 
@@ -19,10 +18,33 @@ class AWSCredentials(BaseModel):
 
 class AWSConfig(BaseModel):
     region : str
-    model_id : str
     credentials : AWSCredentials
 
 class SessionConfig(BaseModel):
     session_id : str
     aws : AWSConfig
+
+class ModelDetails(BaseModel):
+    model_id : str
+    model_name : str
+    model_arn : str
+    inference_types : List[str]
+
+"""
+{
+    session_id,
+    aws: {
+            region,
+            credentials
+        }
+}
+"""
+
+
+#  const model_info = {
+#                     'modelId': model.modelId,
+#                     'modelArn': model.modelArn,
+#                     'modelName': model.modelName,
+#                     'inferenceTypes': model.inferenceTypesSupported || []
+#                 }
 

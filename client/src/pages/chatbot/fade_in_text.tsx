@@ -1,8 +1,8 @@
 
 
 import { useMemo } from 'react';
-import "../styles/typing_animation.css";
-import "../styles/chatbot.css";
+import "../../styles/typing_animation.css";
+import "../../styles/chatbot.css";
 
 interface FadeInTextProps {
   text: string;

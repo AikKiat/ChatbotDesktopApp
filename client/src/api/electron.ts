@@ -7,11 +7,12 @@ export interface ElectronAPI{
     onStream(cb: (chunk: AIStreamChunk) => void): void,
     getChatTitles(): Promise<Record<number, string>>,
     updateChatTitle(id: number, title: string): Promise<{ ok?: true; error?: string }>,
-    storeMessages(chatId: number, messages: string[]): Promise<{ ok: true }>,
+    storeMessages(): Promise<{ ok: true }>,
     getLatestMessages(chatId: number, offset: number, limit: number): Promise<MessageDTO[]>,
     awsLogin() : Promise <AWSLoginResponse>,
-    awsListModels() : Promise<any>,
+    listModels() : Promise<any>,
     awsConfigureSession() : Promise<{ok : true}>
+    sendModelDetails(modelId : string) : Promise<{ok : true}>
 }
 
 

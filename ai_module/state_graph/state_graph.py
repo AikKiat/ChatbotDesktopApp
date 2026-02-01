@@ -8,13 +8,13 @@ class AIState:
     _instance : AIState = None
 
 
-    messages: Annotated[list, add_messages]  # Full conversation history
-    user_input: str 
-    agent_response: str
-    chat_id: int
-    chat_title: str 
-    internal_thoughts: str 
-    reasoning_stage: List[str] 
+    messages: Annotated[list, add_messages] = [] # Full conversation history
+    user_input: str = ""
+    agent_response: str = ""
+    chat_id: int = -1
+    chat_title: str = ""
+    internal_thoughts: str = "" 
+    reasoning_stage: List[str] = []
 
     def __init__(self):
          return ("Use Get Instance instead, as this is a singleton!")

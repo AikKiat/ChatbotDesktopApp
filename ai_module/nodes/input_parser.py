@@ -1,39 +1,29 @@
+from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
+from agent_response_model import AgentResponseModel
+from prompts import Prompts
 from state_graph.state_graph import State
 
-from langchain_core.messages import SystemMessage, HumanMessage
-from agent_response_model import AgentResponseModel
-import asyncio
-
-
-from langchain_core.messages import SystemMessage, HumanMessage
-
-from prompts import Prompts
-
-async def input_parser_node(state : State, config):
-
-    llm = config["llm"]
+def input_parser_node(state: State, config):
+    print("invoking...")
+    llm = config["configurable"]["llm"]
 
     AgentResponseModel.set_internal_thoughts("Processing your message...")
-    
+
     user_input = state["user_input"]
 
-    state["messages"].append(f"HU|{user_input}")
-    
-    processed_stages = state.get("reasoning_stage", [])
-    processed_stages.append("Input_Parsing")
-    
+    messages = list(state["messages"])
+    messages.append(HumanMessage(content=user_input))
 
-    
-    SYSTEM_MESSAGE = Prompts.LANGUAGE_PROMPT
-    reasoning = await llm.ainvoke([
-        SystemMessage(content=SYSTEM_MESSAGE),
+    reasoning = llm.invoke([
+        SystemMessage(content=Prompts.LANGUAGE_PROMPT),
         HumanMessage(content=user_input)
     ])
 
-    state["messages"].append(f"AI|{reasoning.content}")
-    
-    return {"ai_response" : reasoning.content, "messages" : state["messages"]}
+    AgentResponseModel.set_monologue(reasoning.content)
 
+    messages.append(AIMessage(content=reasoning.content))
 
-
-
+    return {
+        "messages": messages,
+        "ai_response": reasoning.content
+    }

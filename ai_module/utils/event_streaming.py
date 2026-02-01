@@ -2,7 +2,7 @@
 
 from agent_response_model import AgentResponseModel
 import asyncio
-from api_mappings import ChatRequest
+from utils.api_mappings import ChatRequest
 from asyncio import Queue
 import json
 
