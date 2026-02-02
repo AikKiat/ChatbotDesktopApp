@@ -15,6 +15,7 @@ class AIState:
     chat_title: str = ""
     internal_thoughts: str = "" 
     reasoning_stage: List[str] = []
+    current_chat_number : int = 0
 
     def __init__(self):
          return ("Use Get Instance instead, as this is a singleton!")
@@ -39,6 +40,8 @@ class AIState:
         return self.internal_thoughts
     def get_reasoning_stage(self):
         return self.reasoning_stage
+    def get_current_chat_number(self):
+        return self.current_chat_number
     
 
     
@@ -56,6 +59,8 @@ class AIState:
         self.internal_thoughts=value
     def set_reasoning_stage(self,value):
         self.reasoning_stage=value
+    def set_current_chat_number(self, value):
+        self.current_chat_number = value
     
 
 
@@ -67,6 +72,7 @@ class State(TypedDict):
     chat_title: str 
     internal_thoughts: str 
     reasoning_stage: List[str] 
+    chat_number : int
     
 
     

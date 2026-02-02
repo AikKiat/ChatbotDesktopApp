@@ -14,6 +14,8 @@ export class Messages{
 
     private static instance : Messages | null = null;
 
+    private currentId : number = -1;
+
     private constructor(){
 
     }
@@ -26,8 +28,10 @@ export class Messages{
     }
 
     public appendToMessages(message : Message){
+        this.currentId = message.chatId;
         this.messages.push(message);  
     }
+
 
     public async saveToDb(){
         try{
@@ -42,6 +46,9 @@ export class Messages{
 
             // 2. Write-through to Redis cache
             await this.updateCache();
+
+            console.log("Emptying");
+            this.messages = [];
             
             return true;
             
@@ -51,9 +58,6 @@ export class Messages{
         }
     }
 
-    /**
-     * Update Redis cache with new messages (write-through)
-     */
     private async updateCache(): Promise<void> {
         try {
             const redis = RedisClient.getInstance();
@@ -64,7 +68,6 @@ export class Messages{
 
             const client = redis.getClient();
 
-            // Group messages by chatId
             const messagesByChatId = new Map<number, Message[]>();
             for (const message of this.messages) {
                 if (!messagesByChatId.has(message.chatId)) {
@@ -73,11 +76,9 @@ export class Messages{
                 messagesByChatId.get(message.chatId)!.push(message);
             }
 
-            // Update cache for each chat
             for (const [chatId, chatMessages] of messagesByChatId) {
                 const cacheKey = `chat:${chatId}:messages`;
 
-                // Push new messages to the list
                 if (chatMessages.length > 0) {
                     await client.rPush(
                         cacheKey,
@@ -101,38 +102,65 @@ export class Messages{
 
     public async getLatestMessages(chatId : number, offset : number, limit : number){
 
-        //Cache HIT
+        //Cache HIT, and offset is 0 (means we just fetching latest only)
         if (offset === 0) {
             const cachedMessages = await this.getFromCache(chatId, limit);
             if (cachedMessages.length > 0) {
                 console.log(`[Cache] Hit for chat ${chatId}, ${cachedMessages.length} messages`);
                 return cachedMessages;
             }
-        }
+            console.log(`[Cache] Miss for chat ${chatId} with offset of 0`);
 
-        console.log(`[Cache] Miss for chat ${chatId}`);
+            //Cache MISS
+            const messages : {content : string;}[] = await prisma.message.findMany({
+                where : {chatId},
+                orderBy : {id : 'desc'},
+                skip : offset,
+                take : limit,
+                select : {content : true}
+            });
 
-        //Cache MISS
-        const messages : {content : string;}[] = await prisma.message.findMany({
-            where : {chatId},
-            orderBy : {id : 'asc'},
-            skip : offset,
-            take : limit,
-            select : {content : true}
-        });
+            let messageStringList : string[] = []
+            
+            messages.map((message : {content : string}) =>{
+                // this.messages.push({chatId : chatId, content : message.content});
+                messageStringList.push(message.content);
+            })
 
-        let messageStringList : string[] = []
-        
-        messages.map((message : {content : string}) =>{
-            this.messages.push({chatId : chatId, content : message.content});
-            messageStringList.push(message.content);
-        })
+            // Reverse to show oldest-to-newest
+            messageStringList.reverse();
 
-        if (offset === 0 && messageStringList.length > 0) {
             await this.warmCache(chatId, messageStringList);
-        }
 
-        return messageStringList
+            return messageStringList
+        }
+        else{
+
+            console.log("fetching older messages");
+            console.log(offset);
+            console.log(limit);
+
+            const messages : {content : string;}[] = await prisma.message.findMany({
+                where : {chatId},
+                orderBy : {id : 'desc'},
+                skip : offset,
+                take : limit,
+                select : {content : true}
+            });
+
+            let messageStringList : string[] = []
+            
+            messages.map((message : {content : string}) =>{
+                messageStringList.push(message.content);
+            })
+
+            // Reverse to show oldest-to-newest
+            messageStringList.reverse();
+
+            console.log(messageStringList);
+
+            return messageStringList
+        }
     }
 
 

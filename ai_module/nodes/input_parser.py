@@ -19,9 +19,11 @@ def input_parser_node(state: State, config):
         HumanMessage(content=user_input)
     ])
 
-    AgentResponseModel.set_monologue(reasoning.content)
+    monologue : str = reasoning.content + "|" + str(state["chat_number"])
 
-    messages.append(AIMessage(content=reasoning.content))
+    AgentResponseModel.set_monologue(monologue)
+
+    messages.append(AIMessage(content=monologue))
 
     return {
         "messages": messages,

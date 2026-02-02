@@ -1,6 +1,6 @@
 
 
-import { findTitles, insertTitle, getChatTitle } from "../repositories/chat_repo";
+import { findTitles, insertTitle, getChatTitle,} from "../repositories/chat_repo";
 
 export async function getChatTitles(){
     return findTitles();

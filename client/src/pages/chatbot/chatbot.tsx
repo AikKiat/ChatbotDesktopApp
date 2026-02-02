@@ -23,6 +23,8 @@ import type { AIStreamChunk } from "../../api/api_dtos";
 export default function AIBotSection() {
     const [messages, setMessages] = useState<string[]>([]);
 
+    const [currentChatCount, setCurrentChatCount] = useState<number>(0);
+
     const [inputValue, setInputValue] = useState("");
 
     const [internalThoughtsString, setInternalThoughts] = useState<string>("");
@@ -33,11 +35,10 @@ export default function AIBotSection() {
     const [currentTitle, setCurrentTitle] = useState<string>("");
     const [currentId, setCurrentId] = useState<number>(0);
 
-    // Track loaded message count per chat for "Load More" functionality
     const [isLoadingMore, setIsLoadingMore] = useState(false);
-    const [hasMoreMessages, setHasMoreMessages] = useState<Map<number, boolean>>(new Map());
+    const [hasMoreMessages, setHasMoreMessages] = useState<Map<number, number>>(new Map());
 
-    // AI streaming state
+
     const [currentAIResponse, setCurrentAIResponse] = useState<string>("");
 
     
@@ -47,8 +48,6 @@ export default function AIBotSection() {
     }, []);
 
 
-
-    // Subscribe to AI stream on mount
     useEffect(() => {
         console.log(currentAIResponse);
         const handleStream = (chunk: AIStreamChunk) => {
@@ -60,10 +59,8 @@ export default function AIBotSection() {
                     break;
 
                 case 'token':
-                    // APPEND tokens, don't replace
                     setMessages((prev) => [...prev, "AI|" + chunk.content])
-                    // setCurrentAIResponse((prev) => prev + (chunk.content || ""));
-                    // setIsAiLoadingResponse(true);
+                    setCurrentChatCount(Number(chunk.content!.split("|").at(-1)))
                     break;
 
                 case 'title':
@@ -73,17 +70,6 @@ export default function AIBotSection() {
                     break;
 
                 case 'done':
-                    // // Use functional form to capture the current AI response
-                    // setCurrentAIResponse((prevResponse) => {
-                    //     if (prevResponse) {
-                    //         setMessages((prev) => [...prev, "AI|" + prevResponse]);
-                    //     }
-                    //     return ""; // Clear after adding to messages
-                    // });
-                    
-                    // if (chunk.chat_title) {
-                    //     setCurrentTitle(chunk.chat_title);
-                    // }
                     setIsAiLoadingResponse(false);
                     setInternalThoughts("");
                     break;
@@ -121,19 +107,20 @@ export default function AIBotSection() {
         
         // Add any pending AI response to messages before submitting new user message
         setMessages((prev) => {
-            const newMessages = [...prev, "HU|" + inputValue];
-            // If there's a current AI response that hasn't been added yet, add it first
-            if (currentAIResponse) {
-                return [...prev, "AI|" + currentAIResponse, "HU|" + inputValue];
-            }
+            const newMessages = [...prev, "HU|" + inputValue + "|"+currentChatCount.toString()];
+            // // If there's a current AI response that hasn't been added yet, add it first
+            // if (currentAIResponse) {
+            //     return [...prev, "AI|" + currentAIResponse, "HU|" + inputValue];
+            // }
             return newMessages;
         });
         
         setCurrentAIResponse("");
         setIsAiLoadingResponse(true);
+        setCurrentChatCount((prev) => prev + 1);
         
         try {
-            await sendPromptToAI("HU|"+inputValue, currentId, 0, 10); 
+            await sendPromptToAI("HU|"+inputValue+"|"+currentChatCount.toString(), currentId, 0, 3); 
             
             //We put zero over here for the offset because these last 2 argument parameters 
             // will only be used for the first user's message to the ai upon switching to this chat. 
@@ -168,26 +155,33 @@ export default function AIBotSection() {
         setCurrentId(chatId);
         const messages : string[] = result.messages;
         setMessages(messages);
+        setCurrentChatCount(Number(messages[messages.length - 1].split("|").at(-1))+1);
         
-        const totalMessages = result.total_messages || -1;
+        const totalMessages = messages.length > 0 ? Number(messages[messages.length - 1].split("|").at(-1)) : 0;
         console.log(totalMessages);
-        setHasMoreMessages(prev => new Map(prev).set(chatId, messages.length < totalMessages));
+        setHasMoreMessages(prev => new Map(prev).set(chatId, messages.length < totalMessages ? 1 : -1));
     }
     
     async function handleLoadMore() {
         if (isLoadingMore || currentId === 0) return;
+
+        if(!hasMoreMessages.get(currentId)) return;
         
-        const currentMessages = chatDataMappings[currentId]?.messages || [];
-        const currentOffset = currentMessages.length;
+        const currentMessages = messages; // Use current messages state, not chatDataMappings
+        const currentOffset = hasMoreMessages.get(currentId)! * 3;
+
+        console.log("offset", currentOffset);
         
         setIsLoadingMore(true);
         
         try {
-            const olderMessages = await loadMoreMessages(currentId, currentOffset, 10);
-            
+            const olderMessages = await loadMoreMessages(currentId, currentOffset, 3);
+            console.log("older messages", olderMessages);
             if (olderMessages.length > 0) {
-                // Prepend older messages to the start (they're older, so go before current messages)
-                const updatedMessages: string[] = [...olderMessages.reverse(), ...currentMessages];
+                const updatedMessages: string[] = [...olderMessages, ...currentMessages];
+                
+                // Update both states
+                setMessages(updatedMessages);
                 setChatDataMappings(prev => ({
                     ...prev,
                     [currentId]: {
@@ -197,13 +191,13 @@ export default function AIBotSection() {
                     }
                 }));
                 
-                // If we got fewer than requested, no more messages
-                if (olderMessages.length < 10) {
-                    setHasMoreMessages(prev => new Map(prev).set(currentId, false));
+                if (olderMessages.length < 3) {
+                    setHasMoreMessages(prev => new Map(prev).set(currentId, -1));
+                } else {
+                    setHasMoreMessages(prev => new Map(prev).set(currentId, hasMoreMessages.get(currentId)! + 1));
                 }
             } else {
-                // No more messages available
-                setHasMoreMessages(prev => new Map(prev).set(currentId, false));
+                setHasMoreMessages(prev => new Map(prev).set(currentId, -1));
             }
         } catch (error) {
             console.error("Failed to load more messages:", error);
@@ -235,10 +229,9 @@ export default function AIBotSection() {
     }
 
     async function saveChat() {
-        // Save messages to DB
         if (messages.length > 0 && currentId > 0) {
-            await storeMessages();
             await updateChatTitle(currentId, currentTitle);
+            await storeMessages();
         }
     }
 
@@ -272,7 +265,6 @@ export default function AIBotSection() {
         setChatDataMappings(updatedMappings);
     }
 
-    // Load chat titles on mount
     useEffect(() => {
         fetchChatTitles();
     }, []);
@@ -325,7 +317,7 @@ interface chatBotProps {
     handleKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
     handleLoadMore: () => void;
     isLoadingMore: boolean;
-    hasMoreMessages: Map<number, boolean>;
+    hasMoreMessages: Map<number, number>;
     currentAIResponse: string;
 }
 
@@ -391,7 +383,7 @@ export function ChatBot({
                 { messages && messages.length > 0 ? (
                     <div className="chatting_holder">
                         <div className="chatting_scroll_view">
-                            {currentId >= 0 && hasMoreMessages.get(currentId) === true && (
+                            {currentId >= 0 && hasMoreMessages.get(currentId)! > 0 && (
                                 <button 
                                     className="load_more_button" 
                                     onClick={handleLoadMore}
@@ -403,7 +395,10 @@ export function ChatBot({
                             {messages.map((message, index) => {
                                 console.log(messages);
                                 const isHuman = message.startsWith("HU|");
-                                const content = message.substring(3); // Remove "HU|" or "AI|" prefix
+                                const parts = message.split("|");
+                                const messageIndex = parts.at(-1);
+                                console.log(messageIndex);
+                                const content = message.replace("|"+messageIndex, "").slice(3, message.length);
                                 
                                 if (isHuman) {
                                     return (
@@ -419,8 +414,6 @@ export function ChatBot({
                                     );
                                 }
                             })}
-
-                            {/* Show currently streaming AI response */}
                             {currentAIResponse && (
                                 <div className="text_box_holder_ai">
                                     <FadeInText text={currentAIResponse} delay={20} />

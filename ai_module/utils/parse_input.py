@@ -44,6 +44,8 @@ async def process_user_input(prompt: str, chat_id: int, previous_messages : List
         else:
             #still on the same chat, no need to set both messages and title. Rely on already updated values from conversation.
             AIState.get_instance().set_user_input(prompt[3:])
+
+        AIState.get_instance().set_current_chat_number(int(prompt.split("|")[-1]) + 1) #update to reflect the latest chat count.
         
 
 
@@ -54,6 +56,7 @@ async def process_user_input(prompt: str, chat_id: int, previous_messages : List
             "agent_response": "",
             "chat_title": AIState.get_instance().get_chat_title(),
             "internal_thoughts": "",
+            "chat_number": AIState.get_instance().get_current_chat_number()
         }
         
         final_state = chat_bot.invoke(initial_state, config={"configurable":graph_context}) #invoke the chatbot here

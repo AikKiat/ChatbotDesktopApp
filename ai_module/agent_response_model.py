@@ -20,6 +20,7 @@ class AgentResponseModel:
     _internal_thoughts: str = "" 
     _current_chat_title: str = "New Chat"
     _current_chat_id: int = 0  
+    _current_chat_number : int = 0
     
     _sse_queue: Optional[asyncio.Queue] = None
     

@@ -7,7 +7,7 @@ export async function storeToDb(){
     let result : Boolean = await Messages.getInstance().saveToDb();
     if(result){
         return true;
-    }``
+    }
     return false;
 }
 

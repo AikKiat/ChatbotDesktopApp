@@ -67,13 +67,12 @@ export async function fetchAllChatTitles(): Promise<ChatData[]> {
 //fetch chat conversations for a message id
 export async function fetchChatConvoForGivenId(chatId: number): Promise<ChatConvo> {
   try {
-    const messages = await window.electronAPI.getLatestMessages(chatId, 0, 10);
+    const messages = await window.electronAPI.getLatestMessages(chatId, 0, 3);
     const titlesMap = await window.electronAPI.getChatTitles();
     
     return {
       chat_title: titlesMap[chatId] || "New Chat",
       messages: messages.map(m => m),
-      total_messages: messages.length
     };
   } catch (error) {
     console.error('Failed to fetch chat convo:', error);
@@ -107,9 +106,10 @@ export async function updateChatTitle(chatId: number, title: string): Promise<vo
 
 
 //load more messages
-export async function loadMoreMessages(chatId: number, offset: number, limit: number = 10): Promise<string[]> {
+export async function loadMoreMessages(chatId: number, offset: number, limit: number = 3): Promise<string[]> {
   try {
     const messages = await window.electronAPI.getLatestMessages(chatId, offset, limit);
+    console.log("messages", messages);
     return messages.map(m =>m);
   } catch (error) {
     console.error('Error loading more messages:', error);
