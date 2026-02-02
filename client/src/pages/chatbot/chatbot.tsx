@@ -52,6 +52,7 @@ export default function AIBotSection() {
     useEffect(() => {
         console.log(currentAIResponse);
         const handleStream = (chunk: AIStreamChunk) => {
+            console.log("chunk",chunk);
             switch (chunk.type) {
                 case 'thought':
                     setInternalThoughts(chunk.content || "");
@@ -60,8 +61,9 @@ export default function AIBotSection() {
 
                 case 'token':
                     // APPEND tokens, don't replace
-                    setCurrentAIResponse((prev) => prev + (chunk.content || ""));
-                    setIsAiLoadingResponse(true);
+                    setMessages((prev) => [...prev, "AI|" + chunk.content])
+                    // setCurrentAIResponse((prev) => prev + (chunk.content || ""));
+                    // setIsAiLoadingResponse(true);
                     break;
 
                 case 'title':
@@ -71,17 +73,17 @@ export default function AIBotSection() {
                     break;
 
                 case 'done':
-                    // Use functional form to capture the current AI response
-                    setCurrentAIResponse((prevResponse) => {
-                        if (prevResponse) {
-                            setMessages((prev) => [...prev, "AI|" + prevResponse]);
-                        }
-                        return ""; // Clear after adding to messages
-                    });
+                    // // Use functional form to capture the current AI response
+                    // setCurrentAIResponse((prevResponse) => {
+                    //     if (prevResponse) {
+                    //         setMessages((prev) => [...prev, "AI|" + prevResponse]);
+                    //     }
+                    //     return ""; // Clear after adding to messages
+                    // });
                     
-                    if (chunk.chat_title) {
-                        setCurrentTitle(chunk.chat_title);
-                    }
+                    // if (chunk.chat_title) {
+                    //     setCurrentTitle(chunk.chat_title);
+                    // }
                     setIsAiLoadingResponse(false);
                     setInternalThoughts("");
                     break;

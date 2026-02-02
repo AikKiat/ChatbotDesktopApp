@@ -72,7 +72,7 @@ export async function fetchChatConvoForGivenId(chatId: number): Promise<ChatConv
     
     return {
       chat_title: titlesMap[chatId] || "New Chat",
-      messages: messages.map(m => m.content),
+      messages: messages.map(m => m),
       total_messages: messages.length
     };
   } catch (error) {
@@ -110,7 +110,7 @@ export async function updateChatTitle(chatId: number, title: string): Promise<vo
 export async function loadMoreMessages(chatId: number, offset: number, limit: number = 10): Promise<string[]> {
   try {
     const messages = await window.electronAPI.getLatestMessages(chatId, offset, limit);
-    return messages.map(m => m.content);
+    return messages.map(m =>m);
   } catch (error) {
     console.error('Error loading more messages:', error);
     return [];

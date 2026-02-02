@@ -45,7 +45,7 @@ export class Messages{
     public async getLatestMessages(chatId : number, offset : number, limit : number){
         const messages : {content : string;}[] = await prisma.message.findMany({
             where : {chatId},
-            orderBy : {id : 'desc'},
+            orderBy : {id : 'asc'},
             skip : offset,
             take : limit,
             select : {content : true}

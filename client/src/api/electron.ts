@@ -8,7 +8,7 @@ export interface ElectronAPI{
     getChatTitles(): Promise<Record<number, string>>,
     updateChatTitle(id: number, title: string): Promise<{ ok?: true; error?: string }>,
     storeMessages(): Promise<{ ok: true }>,
-    getLatestMessages(chatId: number, offset: number, limit: number): Promise<MessageDTO[]>,
+    getLatestMessages(chatId: number, offset: number, limit: number): Promise<string[]>,
     awsLogin() : Promise <AWSLoginResponse>,
     listModels() : Promise<any>,
     awsConfigureSession() : Promise<{ok : true}>
