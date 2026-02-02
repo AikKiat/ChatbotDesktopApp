@@ -31,6 +31,7 @@
     "@aws-sdk/credential-provider-sso": "^3.972.3",
     "@prisma/adapter-pg": "^7.3.0",
     "@prisma/client": "^7.3.0",
-    "dotenv": "^17.2.3"
+    "dotenv": "^17.2.3",
+    "redis": "^5.10.0"
   }
 }
